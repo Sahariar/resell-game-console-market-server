@@ -1,0 +1,33 @@
+{
+  "name": "resel-game-console-market",
+  "version": "1.0.0",
+  "description": "Server for resell game console market ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/programming-hero-web-course-4/b612-used-products-resale-server-side-Sahariar.git"
+  },
+  "keywords": [
+    "server",
+    "resell",
+    "game-console"
+  ],
+  "author": "Sahariar",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/programming-hero-web-course-4/b612-used-products-resale-server-side-Sahariar/issues"
+  },
+  "homepage": "https://github.com/programming-hero-web-course-4/b612-used-products-resale-server-side-Sahariar#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^8.5.1",
+    "mongodb": "^4.12.1",
+    "nodemon": "^2.0.20",
+    "readme-template-generator": "^0.9.11"
+  }
+}
