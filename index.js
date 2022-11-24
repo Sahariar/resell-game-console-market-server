@@ -64,6 +64,16 @@ const run = async () => {
         res.send(result)
     })
 
+      //get products by email
+      app.get('/products' , async(req ,res) =>{
+        const email = req.query.email
+        let query ={
+            email:email
+        }
+        const result = await productCatCollection.find(query).sort({"name": 1}).toArray();
+        res.send(result)
+    })
+
     //get Featured or Advertise products
     app.get('/advertise' , async(req ,res) =>{
 
@@ -86,13 +96,26 @@ const run = async () => {
     // get all user
 
     app.get('/users' , async(req ,res) =>{
-        const query={
-
+        const role = req.query.role
+        let query={}
+        if(role === "seller"){
+            query={
+                role:{$eq:"seller"},
+            }
+        }else if( role === "admin"){
+            query={
+                role:{$eq:"admin"},
+            }
+        }else if(role === "buyer") {
+            query={
+                role:{$eq:"buyer"},
+            }
         }
+
         const users = await usersCollection.find(query).toArray()
             res.send(users);
         })
-    // get admin user
+    // verify admin 
 
     app.get("/users/admin/:email", async (req, res) => {
         const email = req.params.email;
@@ -100,7 +123,53 @@ const run = async () => {
         const user = await usersCollection.findOne(query);
         res.send({ isAdmin: user?.role === "admin" });
     });
+       // verify seller 
+    app.get("/users/seller/:email", async (req, res) => {
+        const email = req.params.email;
+        const query = { email };
+        const user = await usersCollection.findOne(query);
+        res.send({ isSeller: user?.role === "seller" });
+    });
 
+    app.put("/users/seller/:id", async (req, res) => {
+	
+        const id = req.params.id;
+        const filter = {
+            _id: ObjectId(id),
+        };
+        const options = {
+            upsert: true,
+        };
+        const updateDoc = {
+            $set: {
+                isVerified: true,
+            },
+        };
+        const result = await usersCollection.updateOne(
+            filter,
+            updateDoc,
+            options
+        );
+
+        res.send(result);
+    });
+
+       // verify buyer 
+    app.get("/users/buyer/:email", async (req, res) => {
+        const email = req.params.email;
+        const query = { email };
+        const user = await usersCollection.findOne(query);
+        res.send({ isBuyer: user?.role === "buyer" });
+    });
+    app.delete('/user/:id' , async(req ,res) =>{
+        const id = req.params.id;
+        const query = {
+            _id: ObjectId(id),
+        };
+    const deleteUser = await usersCollection.deleteOne(query);
+    res.send(deleteUser);
+    })
+    
     
 
 
