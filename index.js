@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const app = express();
@@ -21,6 +21,7 @@ const run = async () => {
 
     const productCollection = client.db('rgc-db').collection('products');
     const productCatCollection = client.db('rgc-db').collection('pdctCategory');
+    const usersCollection = client.db('rgc-db').collection('users');
 
 
     //get products 
@@ -47,15 +48,41 @@ const run = async () => {
 
     //get products category
     app.get('/products/category' , async(req ,res) =>{
-        const category = req.query.category
         let query ={
 
         }
-
-        const result = await productCatCollection.find(query).toArray();
+        const result = await productCatCollection.find(query).sort({"category": 1}).toArray();
         res.send(result)
     })
-    
+    //get products category by id
+    app.get('/products/category/:id' , async(req ,res) =>{
+        const id = req.params.id
+        let query ={
+            _id: ObjectId(id)
+        }
+        const result = await productCatCollection.findOne(query);
+        res.send(result)
+    })
+
+    //get Featured or Advertise products
+    app.get('/advertise' , async(req ,res) =>{
+
+        let query ={
+            featured:{$eq: true},
+            isStock:{$eq: true}
+        }
+
+        const result = await productCollection.find(query).sort({"name": 1}).toArray();
+        res.send(result)
+    })
+    // post user form client side
+
+    app.post('/users' , async(req ,res) =>{
+        const user = req.body;
+        console.log(user);
+        const userInsert = await usersCollection.insertOne(user) 
+        res.send(userInsert);
+    })
 
 
 }
