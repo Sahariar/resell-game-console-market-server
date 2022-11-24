@@ -5,7 +5,7 @@ require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 4000;
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -21,6 +21,7 @@ const run = async () => {
 		const productCollection = client.db("rgc-db").collection("products");
 		const productCatCollection = client.db("rgc-db").collection("pdctCategory");
 		const usersCollection = client.db("rgc-db").collection("users");
+		const bookingsCollection = client.db('rgc-db').collection('bookings');
 
 		//get products
 		app.get("/products", async (req, res) => {
@@ -53,6 +54,7 @@ const run = async () => {
 				.toArray();
 			res.send(result);
 		});
+		
         //get products category by id
 	app.get("/products/category/:id", async (req, res) => {
 		const id = req.params.id;
@@ -119,6 +121,23 @@ app.get("/users", async (req, res) => {
     res.send(users);
 });
 
+// booking
+app.post('/bookings', async (req, res) => {
+	const booking = req.body;
+	console.log(booking);
+	
+	const result = await bookingsCollection.insertOne(booking);
+	res.send(result);
+});
+// booking
+app.get('/bookings', async (req, res) => {
+	const email= req.query.email
+	const query ={
+		email:email
+	}
+	const result = await bookingsCollection.find(query).toArray();
+	res.send(result);
+});
 // verify admin
 
 app.get("/users/admin/:email", async (req, res) => {
@@ -131,7 +150,25 @@ app.get("/users/admin/:email", async (req, res) => {
     }
     res.send(false)
 });
+app.post('/create-payment-intent', async (req, res) => {
+	const booking = req.body;
+	const price = booking.price;
+	const amount = price * 100;
 
+	const paymentIntent = await stripe.paymentIntents.create({
+		currency: 'usd',
+		amount: amount,
+		"payment_method_types": [
+			"card"
+		]
+	});
+
+	const clientSecret = 
+		{
+			clientSecret: paymentIntent.client_secret,
+		}
+	res.send(clientSecret);
+});
 // verify seller
 app.get("/users/seller/:email", async (req, res) => {
     const email = req.params.email;
@@ -179,6 +216,22 @@ app.put("/users/seller/:id", async (req, res) => {
 		const deleteUser = await usersCollection.deleteOne(query);
 		res.send(deleteUser);
 	});
+
+	app.post('/payments', async (req, res) =>{
+		const payment = req.body;
+		const result = await paymentsCollection.insertOne(payment);
+		const id = payment.bookingId
+		const filter = {_id: ObjectId(id)}
+		const updatedDoc = {
+			$set: {
+				paid: true,
+				transactionId: payment.transactionId
+			}
+		}
+		const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
+		res.send(result);
+	})
+
 
 	} finally {
 	}
