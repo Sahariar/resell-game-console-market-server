@@ -16,12 +16,56 @@ const client = new MongoClient(uri, {
 	useUnifiedTopology: true,
 	serverApi: ServerApiVersion.v1,
 });
+function verifyJWT(req, res, next) {
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send('unauthorized access');
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'forbidden access' })
+        }
+        req.decoded = decoded;
+        next();
+    })
+
+}
+
 const run = async () => {
 	try {
 		const productCollection = client.db("rgc-db").collection("products");
 		const productCatCollection = client.db("rgc-db").collection("pdctCategory");
 		const usersCollection = client.db("rgc-db").collection("users");
 		const bookingsCollection = client.db('rgc-db').collection('bookings');
+
+		// jwt user Token
+		app.get('/userjwt' , async(req ,res) =>{
+		const email = req.query.email
+		const query={
+			email:email
+		}
+		console.log(email);
+		const user = await usersCollection.findOne(query)
+		console.log(user);
+		 if(user){
+			const token = jwt.sign(
+				{ email }, 
+				process.env.ACCESS_TOKEN, 
+				{ expiresIn: '7d' })
+			return res.send({
+				accessUserToken: token 
+			})
+		 }
+		 res.status(403).send({
+			accessUserToken: '' 
+		})
+
+		})
+		
 
 		//get products
 		app.get("/products", async (req, res) => {
@@ -44,7 +88,16 @@ const run = async () => {
 			const result = await productCollection.find(query).toArray();
 			res.send(result);
 		});
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
 
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
 		//get products category
 		app.get("/products/category", async (req, res) => {
 			let query = {};
@@ -130,7 +183,7 @@ app.post('/bookings', async (req, res) => {
 	res.send(result);
 });
 // booking
-app.get('/bookings', async (req, res) => {
+app.get('/bookings',verifyJWT, async (req, res) => {
 	const email= req.query.email
 	const query ={
 		email:email
@@ -150,25 +203,38 @@ app.get("/users/admin/:email", async (req, res) => {
     }
     res.send(false)
 });
-app.post('/create-payment-intent', async (req, res) => {
-	const booking = req.body;
-	const price = booking.price;
-	const amount = price * 100;
-
-	const paymentIntent = await stripe.paymentIntents.create({
-		currency: 'usd',
-		amount: amount,
-		"payment_method_types": [
-			"card"
-		]
-	});
-
-	const clientSecret = 
-		{
-			clientSecret: paymentIntent.client_secret,
+app.put('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
+	const id = req.params.id;
+	const filter = { _id: ObjectId(id) }
+	const options = { upsert: true };
+	const updatedDoc = {
+		$set: {
+			role: 'admin'
 		}
-	res.send(clientSecret);
+	}
+	const result = await usersCollection.updateOne(filter, updatedDoc, options);
+	res.send(result);
 });
+
+// app.post('/create-payment-intent', async (req, res) => {
+// 	const booking = req.body;
+// 	const price = booking.price;
+// 	const amount = price * 100;
+
+// 	const paymentIntent = await stripe.paymentIntents.create({
+// 		currency: 'usd',
+// 		amount: amount,
+// 		"payment_method_types": [
+// 			"card"
+// 		]
+// 	});
+
+// 	const clientSecret = 
+// 		{
+// 			clientSecret: paymentIntent.client_secret,
+// 		}
+// 	res.send(clientSecret);
+// });
 // verify seller
 app.get("/users/seller/:email", async (req, res) => {
     const email = req.params.email;
@@ -179,6 +245,14 @@ app.get("/users/seller/:email", async (req, res) => {
        }
        res.send(false)
 });
+
+app.get('/users/seller' , async(req ,res) =>{
+	const email = req.query.email;
+	const query = { email:email}
+	const user = await usersCollection.findOne(query);
+	res.send(user)
+})
+
 
 app.put("/users/seller/:id", async (req, res) => {
     const id = req.params.id;
@@ -194,8 +268,28 @@ app.put("/users/seller/:id", async (req, res) => {
         },
     };
     const result = await usersCollection.updateOne(filter, updateDoc, options);
+	res.send(result);
+	const query ={
+		_id: ObjectId(id)
+	}
+	const user = await usersCollection.findOne(query);
+   console.log('userInformation', user.email);
 
-    res.send(result);
+   const sellerProducts = {
+	email: user.email
+   }
+		const sellerOptions = {
+				upsert: true,
+		};
+
+		const sellerUpdateDoc = {
+	$set: {
+		isVerified: true,
+		sellerName:user.name,
+	},
+		};
+const productsUpdateCol =  await productCollection.updateMany(sellerProducts, sellerUpdateDoc, sellerOptions);
+console.log(productsUpdateCol);
 });
 
 	// verify buyer
@@ -208,7 +302,9 @@ app.put("/users/seller/:id", async (req, res) => {
            }
            res.send(false)
 	});
-	app.delete("/user/:id", async (req, res) => {
+
+
+	app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
 		const id = req.params.id;
 		const query = {
 			_id: ObjectId(id),
@@ -217,20 +313,20 @@ app.put("/users/seller/:id", async (req, res) => {
 		res.send(deleteUser);
 	});
 
-	app.post('/payments', async (req, res) =>{
-		const payment = req.body;
-		const result = await paymentsCollection.insertOne(payment);
-		const id = payment.bookingId
-		const filter = {_id: ObjectId(id)}
-		const updatedDoc = {
-			$set: {
-				paid: true,
-				transactionId: payment.transactionId
-			}
-		}
-		const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
-		res.send(result);
-	})
+	// app.post('/payments', async (req, res) =>{
+	// 	const payment = req.body;
+	// 	const result = await paymentsCollection.insertOne(payment);
+	// 	const id = payment.bookingId
+	// 	const filter = {_id: ObjectId(id)}
+	// 	const updatedDoc = {
+	// 		$set: {
+	// 			paid: true,
+	// 			transactionId: payment.transactionId
+	// 		}
+	// 	}
+	// 	const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
+	// 	res.send(result);
+	// })
 
 
 	} finally {
