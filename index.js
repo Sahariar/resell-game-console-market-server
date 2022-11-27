@@ -83,7 +83,6 @@ const run = async () => {
 		app.get("/products", async (req, res) => {
 			const email = req.query.email;
 			const category = req.query.category;
-
 			let query = {};
 			if (email) {
 				query = {
@@ -92,6 +91,7 @@ const run = async () => {
 			} else if (category) {
 				query = {
 					category: category,
+					isStock:true
 				};
 			} else {
 				query = {};
@@ -133,6 +133,15 @@ const run = async () => {
 				.toArray();
 			res.send(result);
 		});
+		app.get("/products/single", async (req, res) => {
+			const id = req.query.id;
+			let query = {
+				_id: ObjectId(id),
+			};
+			const result = await productCollection
+				.findOne(query)
+			res.send(result);
+		});
 		app.put("/products/stock/:id", async (req, res) => {
 			const id = req.params.id;
 			const updateValue = req.query.value;
@@ -160,6 +169,7 @@ const run = async () => {
 			);
 			res.send(result);
 		});
+
 		//get Featured or Advertise products
 		app.get("/advertise", async (req, res) => {
 			let query = {
@@ -185,12 +195,43 @@ const run = async () => {
 			res.send(productsInsert);
 		});
 
+		app.put("/products/reported", async (req, res) => {
+			const id = req.query.id;
+			const filter = {
+				_id: ObjectId(id),
+			};
+			const options = {
+				upsert: true,
+			};
+			const updateDoc = {
+				$set: {
+					isReported: true
+				},
+			};
+			const result = await productCollection.updateOne(
+				filter,
+				updateDoc,
+				options
+			);
+			console.log(result);
+			res.send(result)
+		});
+		app.get('/products/reported' , async(req ,res) =>{
+			const query = {
+				isReported: true,
+			}
+			const result = await productCollection.find(query).sort( {name: 1}).toArray()
+			res.send(result);
+		})
+		
+
 		// post user form client side
 		app.post("/users", async (req, res) => {
 			const user = req.body;
 			console.log(user);
 			const userInsert = await usersCollection.insertOne(user);
 			res.send(userInsert);
+
 		});
 		// get all user
 
@@ -209,6 +250,10 @@ const run = async () => {
 				query = {
 					role: { $eq: "buyer" },
 				};
+			}else{
+				query = {
+					
+				}
 			}
 
 			const users = await usersCollection.find(query).toArray();
@@ -268,6 +313,7 @@ const run = async () => {
 		// 		}
 		// 	res.send(clientSecret);
 		// });
+
 		// verify seller
 		app.get("/users/seller/:email", async (req, res) => {
 			const email = req.params.email;
@@ -366,6 +412,7 @@ const run = async () => {
 		// 	const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
 		// 	res.send(result);
 		// })
+		
 	} finally {
 	}
 };
