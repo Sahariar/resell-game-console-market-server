@@ -21,6 +21,7 @@ const client = new MongoClient(uri, {
 function verifyJWT(req, res, next) {
 
     const authHeader = req.headers.authorization;
+	console.log(authHeader);
     if (!authHeader) {
         return res.status(401).send('unauthorized access');
     }
@@ -46,6 +47,7 @@ const run = async () => {
        // NOTE: make sure you use verifyAdmin after verifyJWT
 	   const verifyAdmin = async (req, res, next) => {
 		const decodedEmail = req.decoded.email;
+		console.log(decodedEmail);
 		const query = { email: decodedEmail };
 		const user = await usersCollection.findOne(query);
 
@@ -252,7 +254,7 @@ const run = async () => {
 				};
 			}else{
 				query = {
-					
+
 				}
 			}
 
@@ -294,25 +296,25 @@ const run = async () => {
 		});
 
 
-		// app.post('/create-payment-intent', async (req, res) => {
-		// 	const booking = req.body;
-		// 	const price = booking.price;
-		// 	const amount = price * 100;
+		app.post('/create-payment-intent', async (req, res) => {
+			const booking = req.body;
+			const price = booking.price;
+			const amount = price * 100;
 
-		// 	const paymentIntent = await stripe.paymentIntents.create({
-		// 		currency: 'usd',
-		// 		amount: amount,
-		// 		"payment_method_types": [
-		// 			"card"
-		// 		]
-		// 	});
+			const paymentIntent = await stripe.paymentIntents.create({
+				currency: 'usd',
+				amount: amount,
+				"payment_method_types": [
+					"card"
+				]
+			});
 
-		// 	const clientSecret =
-		// 		{
-		// 			clientSecret: paymentIntent.client_secret,
-		// 		}
-		// 	res.send(clientSecret);
-		// });
+			const clientSecret =
+				{
+					clientSecret: paymentIntent.client_secret,
+				}
+			res.send(clientSecret);
+		});
 
 		// verify seller
 		app.get("/users/seller/:email", async (req, res) => {
@@ -398,20 +400,29 @@ const run = async () => {
 			res.send(deleteUser);
 		});
 
-		// app.post('/payments', async (req, res) =>{
-		// 	const payment = req.body;
-		// 	const result = await paymentsCollection.insertOne(payment);
-		// 	const id = payment.bookingId
-		// 	const filter = {_id: ObjectId(id)}
-		// 	const updatedDoc = {
-		// 		$set: {
-		// 			paid: true,
-		// 			transactionId: payment.transactionId
-		// 		}
-		// 	}
-		// 	const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
-		// 	res.send(result);
-		// })
+		app.delete("/products/reported/:id", verifyJWT, verifyAdmin, async (req, res) => {
+			const id = req.params.id;
+			const query = {
+				_id: ObjectId(id),
+			};
+			const deleteReportProduct = await productCollection.deleteOne(query);
+			res.send(deleteReportProduct);
+		});
+
+		app.post('/payments', async (req, res) =>{
+			const payment = req.body;
+			const result = await paymentsCollection.insertOne(payment);
+			const id = payment.bookingId
+			const filter = {_id: ObjectId(id)}
+			const updatedDoc = {
+				$set: {
+					paid: true,
+					transactionId: payment.transactionId
+				}
+			}
+			const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
+			res.send(result);
+		})
 		
 	} finally {
 	}
