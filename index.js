@@ -46,6 +46,7 @@ const run = async () => {
 		const productCatCollection = client.db("rgc-db").collection("pdctCategory");
 		const usersCollection = client.db("rgc-db").collection("users");
 		const bookingsCollection = client.db("rgc-db").collection("bookings");
+		const wishCollection = client.db("rgc-db").collection("wishlist");
 		const paymentsCollection = client.db("rgc-db").collection("payments");
        // NOTE: make sure you use verifyAdmin after verifyJWT
 	   const verifyAdmin = async (req, res, next) => {
@@ -312,7 +313,7 @@ const run = async () => {
 			const query = { email };
 			const user = await usersCollection.findOne(query);
 			
-			if (user.role === "admin") {
+			if (user?.role === "admin") {
 				return res.send(true);
 			}
 			res.send(false);
@@ -345,7 +346,7 @@ const run = async () => {
 			const email = req.params.email;
 			const query = { email };
 			const user = await usersCollection.findOne(query);
-			if (user.role === "seller") {
+			if (user?.role === "seller") {
 				return res.send(true);
 			}
 			res.send(false);
@@ -409,7 +410,7 @@ const run = async () => {
 			const email = req.params.email;
 			const query = { email };
 			const user = await usersCollection.findOne(query);
-			if (user.role === "buyer") {
+			if (user?.role === "buyer") {
 				return res.send(true);
 			}
 			res.send(false);
