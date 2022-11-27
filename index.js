@@ -44,20 +44,17 @@ const run = async () => {
 		const usersCollection = client.db("rgc-db").collection("users");
 		const bookingsCollection = client.db("rgc-db").collection("bookings");
        // NOTE: make sure you use verifyAdmin after verifyJWT
-	//    function verifyAdmin (req, res, next){
-	// 	const decodedEmail = req.decoded?.email;
-	// 	const query = { email: decodedEmail };
-	// 	const user = usersCollection.findOne(query);
-	// 	console.log(user);
-	// 	if (!user?.role === 'admin') {
-	// 		const messageInfo = {
-	// 			message: 'forbidden access',
-	// 			status: 401
-	// 		}
-	// 		return res.status(401).send(messageInfo)
-	// 	}
-	// 	return next();
-	//    }
+	   const verifyAdmin = async (req, res, next) => {
+		const decodedEmail = req.decoded.email;
+		const query = { email: decodedEmail };
+		const user = await usersCollection.findOne(query);
+
+		if (user?.role !== 'admin') {
+			return res.status(403).send({ message: 'forbidden access' })
+		}
+		next();
+	}
+
 
 
 		// jwt user Token
@@ -136,7 +133,33 @@ const run = async () => {
 				.toArray();
 			res.send(result);
 		});
-
+		app.put("/products/stock/:id", async (req, res) => {
+			const id = req.params.id;
+			const updateValue = req.query.value;
+			let stockValue;
+			if (updateValue === "true") {
+				stockValue = true;
+			} else {
+				stockValue = false;
+			}
+			const filter = {
+				_id: ObjectId(id),
+			};
+			const options = {
+				upsert: true,
+			};
+			const updateDoc = {
+				$set: {
+					isStock: stockValue,
+				},
+			};
+			const result = await productCollection.updateOne(
+				filter,
+				updateDoc,
+				options
+			);
+			res.send(result);
+		});
 		//get Featured or Advertise products
 		app.get("/advertise", async (req, res) => {
 			let query = {
@@ -209,6 +232,9 @@ const run = async () => {
 			const result = await bookingsCollection.find(query).toArray();
 			res.send(result);
 		});
+
+
+
 		// verify admin
 
 		app.get("/users/admin/:email", async (req, res) => {
